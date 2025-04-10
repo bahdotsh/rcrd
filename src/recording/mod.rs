@@ -4,7 +4,7 @@ pub mod recorder;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Instant;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
