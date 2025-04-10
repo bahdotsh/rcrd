@@ -1,3 +1,4 @@
+use crate::export;
 use crate::recording::Recording;
 use crate::utils;
 use ctrlc;
@@ -15,6 +16,7 @@ pub fn record_session(output_file: &str) -> io::Result<()> {
     println!("All input and output will be recorded");
     println!("Type 'exit' or press Ctrl+C to end the recording");
     println!("Output will be saved to: {}", output_path.display());
+    println!("A GIF will be automatically created with default settings");
 
     {
         let _test_file = std::fs::File::create(&output_path)?;
@@ -24,6 +26,7 @@ pub fn record_session(output_file: &str) -> io::Result<()> {
     let recording = Arc::new(Mutex::new(Recording::new()));
     let running = Arc::new(AtomicBool::new(true));
 
+    let output_file_clone = output_file.to_string();
     let r_clone = recording.clone();
     let path_clone = output_path.clone();
     let running_clone = running.clone();
@@ -37,6 +40,24 @@ pub fn record_session(output_file: &str) -> io::Result<()> {
         let rec = r_clone.lock().unwrap().clone();
         if let Err(e) = rec.save(&path_clone) {
             eprintln!("Error saving recording on Ctrl+C: {}", e);
+        } else {
+            // Auto-export to GIF after saving recording
+            let gif_output = path_clone.with_extension("gif");
+            println!("Automatically creating GIF from recording...");
+
+            if let Err(e) = export::gif::export_to_gif(
+                path_clone.to_str().unwrap_or(&output_file_clone),
+                gif_output.to_str().unwrap_or("output.gif"),
+                1.0,  // Default speed
+                80,   // Default width
+                24,   // Default height
+                16,   // Default font size
+                true, // Default to dark theme
+            ) {
+                eprintln!("Warning: Failed to create GIF automatically: {}", e);
+            } else {
+                println!("GIF exported to: {}", gif_output.display());
+            }
         }
 
         std::process::exit(0);
@@ -194,10 +215,27 @@ pub fn record_session(output_file: &str) -> io::Result<()> {
     )?;
 
     println!("Recording saved to {}", output_path.display());
-    println!(
-        "You can convert this to a GIF with: terminal-recorder export {} output.gif",
-        output_path.display()
-    );
+
+    // Auto-export to GIF
+    let gif_output = output_path.with_extension("gif");
+    println!("Automatically creating GIF from recording...");
+
+    // Use default settings for GIF export
+    if let Err(e) = export::gif::export_to_gif(
+        output_path.to_str().unwrap_or(output_file),
+        gif_output.to_str().unwrap_or("output.gif"),
+        1.0,  // Default speed
+        80,   // Default width
+        24,   // Default height
+        16,   // Default font size
+        true, // Default to dark theme
+    ) {
+        eprintln!("Warning: Failed to create GIF automatically: {}", e);
+        println!("You can still manually convert this to a GIF with: terminal-recorder export {} output.gif", output_path.display());
+    } else {
+        println!("GIF exported to: {}", gif_output.display());
+        println!("To customize the GIF, use: terminal-recorder export {} custom.gif --width X --height Y", output_path.display());
+    }
 
     Ok(())
 }
